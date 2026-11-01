@@ -1,0 +1,9 @@
+\input regression-test.tex\relax
+\documentclass{article}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\usepackage[authors={Niemi, Kristian},style=bold]{highlightauthors}
+\begin{document}
+\START
+\TEST{list}{\csname ha@highlightauthors\endcsname}
+\TEST{style}{\csname ha@style\endcsname}
+\end{document}

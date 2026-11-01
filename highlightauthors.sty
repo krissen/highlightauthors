@@ -1,0 +1,101 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{highlightauthors}[2025/04/02 Highlight specified authors in bibliography and citations]
+
+% Nödvändiga paket
+\RequirePackage{biblatex}
+\RequirePackage{pgfopts} % För optionshantering, likt citecolours
+\RequirePackage{xstring} % För strängjämförelser och ersättningar
+\RequirePackage{etoolbox} % För booleska villkor och listbearbetning
+
+% Definiera paketnycklar med pgfkeys
+\pgfkeys{
+	/highlightauthors/.cd,
+	% Lista med författare att highlighta, anges enligt BibTeX-standard (separerade med "and")
+	authors/.initial = {},
+	% Vilken stil som ska användas: "bold" (default) eller "colorbox" (markerad bakgrund)
+	style/.initial = {bold},
+	% Om highlight även ska ske i in–text-citeringar (default false)
+	highlightincitations/.initial = false,
+	% Färg för bakgrund om style=colorbox (default gul)
+	color/.initial = {yellow},
+}
+
+% Processa alternativ – användaren anger t ex:
+% \usepackage[authors={Niemi, Kristian and Malmsten, Bodil}, style=bold]{highlightauthors}
+\ProcessPgfOptions{/highlightauthors}
+
+% Hämta och förbered listan med författarnamn. Vi ersätter " and " med kommatecken för att få en CSV-lista.
+\pgfkeysgetvalue{/highlightauthors/authors}{\ha@highlightauthorsRaw}
+\edef\ha@highlightauthorsTemp{\ha@highlightauthorsRaw}%
+\StrSubstitute{\ha@highlightauthorsTemp}{ and }{,}[\ha@highlightauthors]
+% Nu finns listan i \ha@highlightauthors (exempelvis "Niemi, Kristian, Malmsten, Bodil")
+
+% Hämta stil och färg
+\pgfkeysgetvalue{/highlightauthors/style}{\ha@style}
+\pgfkeysgetvalue{/highlightauthors/color}{\ha@color}
+\pgfkeysgetvalue{/highlightauthors/highlightincitations}{\ha@incitationsTemp}
+\edef\ha@incitationsTemp{\ha@incitationsTemp}%
+\ifstrequal{\ha@incitationsTemp}{true}
+{\newif\ifha@incitations \ha@incitationstrue}
+{\newif\ifha@incitations \ha@incitationsfalse}
+
+% Hjälpmakro: jämför en given namnsträng med listan med highlightade namn.
+% Namnsträngen ska vara i formatet "Efternamn, Förnamn" (precis som i BibTeX-posten).
+\newbool{ha@match} % definierar en boolesk variabel
+\newcommand{\ha@ifnamehighlight}[1]{%
+	\boolfalse{ha@match}%
+	% Loopa över varje namn i CSV-listan och jämför med argumentet
+	\renewcommand{\do}[1]{%
+		\IfStrEq{##1}{#1}{\booltrue{ha@match}}{}%
+	}%
+	\docsvlist{\ha@highlightauthors}%
+}
+
+% Nytt namnformat "highlightauthors" – detta ska användas när författarnamnen skrivs ut
+\DeclareNameFormat{highlightauthors}{%
+	% Dela upp namnet i delar (family, given, m.m.)
+	\nameparts{#1}%
+	% Sätt ihop en sträng med formatet "Efternamn, Förnamn"
+	\edef\ha@currentname{\namepartfamily, \namepartgiven}%
+	% Kolla om namnet finns med i listan
+	\ha@ifnamehighlight{\ha@currentname}%
+	% Spara standardformatet i en hjälpmakro
+	\def\ha@formattedname{%
+		\namepartfamily%
+		\ifblank{\namepartgiven}{}{, \namepartgiven}%
+		\ifblank{\namepartprefix}{}{ \namepartprefix}%
+		\ifblank{\namepartsuffix}{}{ \namepartsuffix}%
+	}%
+	% Om match hittas – applicera vald formatering
+	\ifbool{ha@match}{%
+		\ifstrequal{\ha@style}{bold}{%
+			\textbf{\ha@formattedname}%
+		}{%
+			\ifstrequal{\ha@style}{colorbox}{%
+				\colorbox{\ha@color}{\ha@formattedname}%
+			}{%
+				% Default, om okänd stil: använd fetstil
+				\textbf{\ha@formattedname}%
+			}%
+		}%
+	}{%
+		% Om ingen match – skriv ut normalt
+		\ha@formattedname%
+	}%
+	% Skriv ut mellanrum/avgränsare om det inte är sista namnet
+	\ifnum\value{listcount}<\value{liststop}%
+	{\addcomma\space}%
+	{}%
+}
+
+% Ställ in så att namnen för "author" i referenslistan skrivs med vårt nya format.
+\AtBeginBibliography{%
+	\DeclareNameAlias{author}{highlightauthors}%
+}
+% Om alternativet för in–text-citeringar är satt, använd även det nya formatet där.
+\ifha@incitations
+	\DeclareNameAlias{labelname}{highlightauthors}%
+\fi
+
+\endinput
+
