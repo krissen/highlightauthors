@@ -1,0 +1,16 @@
+# Local gate instead of CI: the l3build suite runs in seconds on a
+# maintainer machine, so it runs before push rather than on a runner.
+# Runs via prek (https://github.com/j178/prek); the format is also
+# pre-commit's.
+#   plain clone:                     prek install --hook-type pre-push
+#   machine with global hooksPath:   git config prek.enabled true
+repos:
+  - repo: local
+    hooks:
+      - id: l3build-check
+        name: l3build check
+        entry: make check
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: '(\.(sty|cls|def|dtx|ins|lvt|tlg|lua|tex)|Makefile)$'
